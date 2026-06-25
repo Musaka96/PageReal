@@ -1,13 +1,17 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { demoContracts, demoPayments, demoSnapshots } from "./demo-data";
+import { demoContracts, demoDailySnapshots, demoPayments, demoSnapshots } from "./demo-data";
 import type { ContractVersion, LoggedPayment, Snapshot } from "./types";
 
-const STORAGE_KEY = "pagereal-demo-store-v1";
+// Bump this whenever the shape or generation of the seed data changes, so
+// browsers with an old cached demo state pick up the new dataset instead of
+// silently keeping stale localStorage contents.
+const STORAGE_KEY = "pagereal-demo-store-v2";
 
 type DemoState = {
   snapshots: Snapshot[];
+  dailySnapshots: Snapshot[];
   contracts: ContractVersion[];
   payments: LoggedPayment[];
 };
@@ -22,6 +26,7 @@ type DemoStore = DemoState & {
 function defaultState(): DemoState {
   return {
     snapshots: demoSnapshots,
+    dailySnapshots: demoDailySnapshots,
     contracts: demoContracts,
     payments: demoPayments,
   };

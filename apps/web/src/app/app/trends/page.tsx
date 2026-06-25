@@ -27,6 +27,10 @@ function moneyTooltip(value: unknown): string {
   return money(typeof value === "number" ? value : Number(value ?? 0));
 }
 
+function average(values: number[]): number {
+  return values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
+}
+
 const CATEGORY_COLORS = {
   subscriptions: "#0f172a",
   tips: "#f59e0b",
@@ -35,9 +39,12 @@ const CATEGORY_COLORS = {
 };
 
 export default function TrendsPage() {
-  const { snapshots } = useDemoStore();
+  const { dailySnapshots } = useDemoStore();
 
-  const sorted = useMemo(() => [...snapshots].sort((a, b) => a.date.localeCompare(b.date)), [snapshots]);
+  const sorted = useMemo(
+    () => [...dailySnapshots].sort((a, b) => a.date.localeCompare(b.date)),
+    [dailySnapshots]
+  );
 
   const periodSeries = useMemo(() => {
     const out: { date: string; subscriptions: number; tips: number; ppv: number; customs: number; total: number }[] = [];
@@ -72,11 +79,31 @@ export default function TrendsPage() {
     { name: "Customs", key: "customs", value: totals.customs },
   ];
 
-  const avgPerPeriod = periodSeries.length ? grandTotal / periodSeries.length : 0;
-  const bestPeriod = periodSeries.reduce((best, p) => (p.total > (best?.total ?? -Infinity) ? p : best), periodSeries[0]);
+  const avgPerDay = periodSeries.length ? grandTotal / periodSeries.length : 0;
+  const bestDay = periodSeries.reduce((best, p) => (p.total > (best?.total ?? -Infinity) ? p : best), periodSeries[0]);
+
+  // 7-day rolling buckets, purely for the stacked category chart's readability —
+  // 180+ individual daily bars would be unreadable at this width.
+  const weeklySeries = useMemo(() => {
+    const out: { week: string; subscriptions: number; tips: number; ppv: number; customs: number }[] = [];
+    for (let i = 0; i < periodSeries.length; i += 7) {
+      const chunk = periodSeries.slice(i, i + 7);
+      out.push({
+        week: chunk[0].date,
+        subscriptions: chunk.reduce((s, d) => s + d.subscriptions, 0),
+        tips: chunk.reduce((s, d) => s + d.tips, 0),
+        ppv: chunk.reduce((s, d) => s + d.ppv, 0),
+        customs: chunk.reduce((s, d) => s + d.customs, 0),
+      });
+    }
+    return out;
+  }, [periodSeries]);
+
   const growth =
-    periodSeries.length > 1
-      ? ((periodSeries[periodSeries.length - 1].total - periodSeries[0].total) / Math.max(periodSeries[0].total, 1)) * 100
+    periodSeries.length > 7
+      ? ((average(periodSeries.slice(-7).map((p) => p.total)) - average(periodSeries.slice(0, 7).map((p) => p.total))) /
+          Math.max(average(periodSeries.slice(0, 7).map((p) => p.total)), 1)) *
+        100
       : 0;
 
   return (
@@ -84,19 +111,24 @@ export default function TrendsPage() {
       <PageHeader title="Sales Trends" subtitle="Revenue mix and growth across the account history." />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Metric label="Total earned" value={money(grandTotal)} />
-        <Metric label="Avg per period" value={money(avgPerPeriod)} />
-        <Metric label="Best period" value={bestPeriod ? money(bestPeriod.total) : "—"} sub={bestPeriod?.date} />
-        <Metric label="Growth (first → last)" value={`${growth >= 0 ? "+" : ""}${growth.toFixed(0)}%`} />
+        <Metric label="Total earned (6mo)" value={money(grandTotal)} />
+        <Metric label="Avg per day" value={money(avgPerDay)} />
+        <Metric label="Best day" value={bestDay ? money(bestDay.total) : "—"} sub={bestDay?.date} />
+        <Metric label="Growth (first wk → last wk)" value={`${growth >= 0 ? "+" : ""}${growth.toFixed(0)}%`} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
-          <h2 className="mb-4 text-sm font-semibold text-slate-700">Earnings over time</h2>
+          <h2 className="mb-4 text-sm font-semibold text-slate-700">Earnings over time (daily)</h2>
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={periodSeries}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11 }}
+                stroke="#94a3b8"
+                interval={Math.max(Math.floor(periodSeries.length / 7), 1)}
+              />
               <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
               <Tooltip formatter={moneyTooltip} />
               <Area type="monotone" dataKey="total" stroke="#0f172a" fill="#0f172a" fillOpacity={0.08} strokeWidth={2} />
@@ -121,11 +153,11 @@ export default function TrendsPage() {
       </div>
 
       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-4 text-sm font-semibold text-slate-700">Revenue by category, per period</h2>
+        <h2 className="mb-4 text-sm font-semibold text-slate-700">Revenue by category, per week</h2>
         <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={periodSeries}>
+          <BarChart data={weeklySeries}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+            <XAxis dataKey="week" tick={{ fontSize: 11 }} stroke="#94a3b8" />
             <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
             <Tooltip formatter={moneyTooltip} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
