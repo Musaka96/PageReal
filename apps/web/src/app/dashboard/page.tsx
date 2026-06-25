@@ -1,4 +1,7 @@
-import { demoContracts, demoCreatorName, demoPayments, demoPeriod, demoSnapshots } from "@/lib/demo-data";
+import { Header, Nav } from "@/components/Header";
+import { ExportButton } from "@/components/ExportButton";
+import { buildAuditChain } from "@/lib/audit-chain";
+import { demoContracts, demoPayments, demoPeriod, demoSnapshots } from "@/lib/demo-data";
 import { reconcile } from "@/lib/reconciliation";
 
 function money(n: number): string {
@@ -9,18 +12,23 @@ export default function DashboardPage() {
   const result = reconcile(demoSnapshots, demoContracts, demoPayments, demoPeriod.start, demoPeriod.end);
   const isShort = result.delta > 0;
 
+  const chain = buildAuditChain(demoSnapshots.map((s) => ({ timestamp: s.date, data: s })));
+  const chainHead = chain[chain.length - 1]?.hash ?? null;
+
+  const exportPayload = {
+    creator: "Demo Creator",
+    source: "demo",
+    generatedAt: new Date().toISOString(),
+    period: demoPeriod,
+    reconciliation: result,
+    auditChainHead: chainHead,
+  };
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-8">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-500">{demoCreatorName}</p>
-            <h1 className="text-2xl font-semibold text-slate-900">Earnings Reconciliation</h1>
-          </div>
-          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
-            Demo Mode — synthetic data
-          </span>
-        </div>
+        <Nav active="dashboard" />
+        <Header active="dashboard" />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Gross earned" value={money(result.grossEarned)} />
@@ -40,8 +48,11 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <h2 className="mt-8 mb-3 text-lg font-semibold text-slate-900">Period breakdown</h2>
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <div className="mt-6 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Period breakdown</h2>
+          <ExportButton data={exportPayload} filename="clearledger-demo-reconciliation.json" />
+        </div>
+        <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-100 text-slate-600">
               <tr>
@@ -69,6 +80,14 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
+
+        <p className="mt-3 text-xs text-slate-400">
+          Audit chain head: <span className="font-mono">{chainHead?.slice(0, 16)}…</span> — see the{" "}
+          <a href="/audit-log" className="underline">
+            Audit Log
+          </a>{" "}
+          for the full tamper-evident history.
+        </p>
       </div>
     </main>
   );
