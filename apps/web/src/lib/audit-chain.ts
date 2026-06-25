@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { sha256Hex } from "./sha256";
 
 export type AuditEntry = {
   index: number;
@@ -12,7 +12,7 @@ const GENESIS_HASH = "0".repeat(64);
 
 function hashEntry(timestamp: string, data: Record<string, unknown>, prevHash: string): string {
   const payload = timestamp + JSON.stringify(data) + prevHash;
-  return createHash("sha256").update(payload).digest("hex");
+  return sha256Hex(payload);
 }
 
 /**

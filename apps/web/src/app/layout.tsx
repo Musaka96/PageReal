@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ClearLedger",
+  title: "PageReal",
   description: "Independent earnings verification for creators.",
 };
 

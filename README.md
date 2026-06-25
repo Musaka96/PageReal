@@ -1,4 +1,4 @@
-# ClearLedger
+# PageReal
 
 A read-only, creator-controlled audit tool for OnlyFans/Fansly creators. See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for the full product plan and [CLAUDE.md](CLAUDE.md) / [agent_docs/](agent_docs) for build specs.
 

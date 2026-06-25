@@ -11,7 +11,7 @@ messages_meta    (timestamp, length, latency; content only if opted in)
 style_baseline   (reference samples + computed feature vector)
 boundary_docs    (versioned consent docs, each hashed)
 payments_logged  (creator-reported payouts for reconciliation)
-subscriptions    (the creator's ClearLedger plan/tier + Stripe refs)
+subscriptions    (the creator's PageReal plan/tier + Stripe refs)
 ```
 
 ## Immutability rules

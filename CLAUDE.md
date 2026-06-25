@@ -1,4 +1,4 @@
-# ClearLedger — Creator Trust Platform
+# PageReal — Creator Trust Platform
 
 ## What this is
 A read-only, creator-controlled audit tool for OnlyFans/Fansly creators. It independently verifies earnings, audits chatter activity, and records boundary consent — WITHOUT depending on any agency CRM. Core principle: **independence and verifiability**. The creator is always the customer; agencies never pay and are never the user.

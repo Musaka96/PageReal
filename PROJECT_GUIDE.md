@@ -2,7 +2,7 @@
 
 A neutral, creator-side transparency layer for OnlyFans/Fansly models. It independently verifies earnings, audits chatter activity, and records content-boundary consent — without depending on the agency's CRM. This document is the master plan: architecture, feature set, payment tiers, deployment, and a practical guide to building it with Claude Code.
 
-> **Working name used throughout:** `ClearLedger` (swap for your real brand). The product's whole value proposition is independence and verifiability, so the brand should signal "audit / record / proof," not "fan management."
+> **Brand:** `PageReal`. The product's whole value proposition is independence and verifiability, so the brand should signal "audit / record / proof," not "fan management."
 
 ---
 
@@ -16,7 +16,7 @@ A read-only financial-and-activity audit tool that a creator controls, giving th
 - **Not for:** agencies. The product is structurally adversarial to the agency CRM. Agencies are never the customer and never pay. This is a deliberate trust signal.
 
 ### Why it can exist technically
-OnlyFans allows multiple concurrent sessions per account. The creator authenticates to ClearLedger with their *own* credentials/session, and ClearLedger reads the same ground-truth data OnlyFans' own backend exposes — entirely separate from the agency's session. It's the same scraping approach the CRMs use, pointed at different data and owned by a different party.
+OnlyFans allows multiple concurrent sessions per account. The creator authenticates to PageReal with their *own* credentials/session, and PageReal reads the same ground-truth data OnlyFans' own backend exposes — entirely separate from the agency's session. It's the same scraping approach the CRMs use, pointed at different data and owned by a different party.
 
 ### The three pillars (everything maps to one of these)
 1. **Earnings mirror** — what the account actually earned, independent of agency reporting.
@@ -131,7 +131,7 @@ messages_meta    (timestamp, length, latency; content only if opted in)
 style_baseline   (reference samples + computed feature vector)
 boundary_docs    (versioned consent docs, each hashed)
 payments_logged  (creator-reported payouts for reconciliation)
-subscriptions    (the creator's ClearLedger plan/tier + Stripe refs)
+subscriptions    (the creator's PageReal plan/tier + Stripe refs)
 ```
 
 ### Security & secrets (non-negotiable, this is an adult-finance product)
