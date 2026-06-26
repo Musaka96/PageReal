@@ -38,12 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function check() {
-      if (localStorage.getItem(SESSION_KEY) === "1") {
-        setSignedIn(true);
-        setMode("demo");
-        setLoading(false);
-        return;
-      }
+      // A real session always wins over a stale demo flag — otherwise once
+      // someone has ever tried the demo, the leftover localStorage flag
+      // would shadow any real account on every later visit in that browser.
       try {
         const res = await fetch("/api/auth/me");
         const data = await res.json();
@@ -51,9 +48,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSignedIn(true);
           setMode("real");
           setEmail(data.user.email);
+          setLoading(false);
+          return;
         }
       } catch {
-        // no backend reachable yet — fall through to signed-out
+        // no backend reachable yet — fall through to checking demo mode
+      }
+      if (localStorage.getItem(SESSION_KEY) === "1") {
+        setSignedIn(true);
+        setMode("demo");
       }
       setLoading(false);
     }
@@ -69,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signInReal(emailInput: string, password: string) {
     const result = await postJson("/api/auth/login", { email: emailInput, password });
     if (result.ok) {
+      localStorage.removeItem(SESSION_KEY);
       setSignedIn(true);
       setMode("real");
       setEmail(result.data.email);
@@ -79,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signUpReal(emailInput: string, password: string) {
     const result = await postJson("/api/auth/signup", { email: emailInput, password });
     if (result.ok) {
+      localStorage.removeItem(SESSION_KEY);
       setSignedIn(true);
       setMode("real");
       setEmail(result.data.email);
@@ -87,11 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
-    if (mode === "demo") {
-      localStorage.removeItem(SESSION_KEY);
-    } else if (mode === "real") {
-      await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-    }
+    localStorage.removeItem(SESSION_KEY);
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
     setSignedIn(false);
     setMode(null);
     setEmail(null);
