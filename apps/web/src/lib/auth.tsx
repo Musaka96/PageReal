@@ -4,38 +4,104 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 
 const SESSION_KEY = "pagereal-demo-session-v1";
 
+type AuthMode = "demo" | "real" | null;
+
 type AuthState = {
   loading: boolean;
   signedIn: boolean;
-  signIn: () => void;
-  signOut: () => void;
+  mode: AuthMode;
+  email: string | null;
+  signInDemo: () => void;
+  signInReal: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  signUpReal: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
 
+async function postJson(url: string, body: unknown) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false as const, error: data.error ?? "Something went wrong." };
+  return { ok: true as const, data };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [signedIn, setSignedIn] = useState(false);
+  const [mode, setMode] = useState<AuthMode>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Read on mount only, client-side — avoids SSR/hydration mismatch from
-    // reading localStorage during render.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSignedIn(localStorage.getItem(SESSION_KEY) === "1");
-    setLoading(false);
+    async function check() {
+      if (localStorage.getItem(SESSION_KEY) === "1") {
+        setSignedIn(true);
+        setMode("demo");
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.user) {
+          setSignedIn(true);
+          setMode("real");
+          setEmail(data.user.email);
+        }
+      } catch {
+        // no backend reachable yet — fall through to signed-out
+      }
+      setLoading(false);
+    }
+    check();
   }, []);
 
-  function signIn() {
+  function signInDemo() {
     localStorage.setItem(SESSION_KEY, "1");
     setSignedIn(true);
+    setMode("demo");
   }
 
-  function signOut() {
-    localStorage.removeItem(SESSION_KEY);
+  async function signInReal(emailInput: string, password: string) {
+    const result = await postJson("/api/auth/login", { email: emailInput, password });
+    if (result.ok) {
+      setSignedIn(true);
+      setMode("real");
+      setEmail(result.data.email);
+    }
+    return result;
+  }
+
+  async function signUpReal(emailInput: string, password: string) {
+    const result = await postJson("/api/auth/signup", { email: emailInput, password });
+    if (result.ok) {
+      setSignedIn(true);
+      setMode("real");
+      setEmail(result.data.email);
+    }
+    return result;
+  }
+
+  async function signOut() {
+    if (mode === "demo") {
+      localStorage.removeItem(SESSION_KEY);
+    } else if (mode === "real") {
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    }
     setSignedIn(false);
+    setMode(null);
+    setEmail(null);
   }
 
-  return <AuthContext.Provider value={{ loading, signedIn, signIn, signOut }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ loading, signedIn, mode, email, signInDemo, signInReal, signUpReal, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthState {

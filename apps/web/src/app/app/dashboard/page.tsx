@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { PageHeader } from "@/components/PageHeader";
 import { ExportButton } from "@/components/ExportButton";
+import { PdfExportButton } from "@/components/PdfExportButton";
 import { buildAuditChain } from "@/lib/audit-chain";
 import { useDemoStore } from "@/lib/store";
 import { reconcile } from "@/lib/reconciliation";
@@ -122,7 +123,18 @@ export default function DashboardPage() {
       <PageHeader
         title="Earnings Reconciliation"
         subtitle="What the account earned vs. what you were actually paid."
-        action={<ExportButton data={exportPayload} filename="pagereal-reconciliation.json" />}
+        action={
+          <div className="flex gap-2">
+            <PdfExportButton
+              creatorName="Demo Creator"
+              source="demo"
+              result={result}
+              auditChainHead={chainHead}
+              filename="pagereal-reconciliation.pdf"
+            />
+            <ExportButton data={exportPayload} filename="pagereal-reconciliation.json" />
+          </div>
+        }
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">

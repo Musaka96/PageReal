@@ -1,0 +1,121 @@
+// PageReal database schema.
+// See agent_docs/data_model.md for the full table rationale and immutability rules.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountSource {
+  live
+  demo
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  sessions       Session[]
+  linkedAccounts LinkedAccount[]
+  loginAttempts  LoginAttempt[]
+}
+
+/// Server-side session record. The cookie only holds the opaque token below;
+/// all session state (and the ability to revoke it) lives here.
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+/// Coarse rate-limiting for auth endpoints. See agent_docs/security_requirements.md.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String
+  ip        String
+  succeeded Boolean
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+}
+
+/// One row per platform account a creator has connected. `source` is the only
+/// field application code branches on to distinguish demo from live data —
+/// see agent_docs/demo_mode_spec.md and architecture.md.
+model LinkedAccount {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform  String        @default("onlyfans")
+  source    AccountSource
+  status    String        @default("active")
+  createdAt DateTime      @default(now())
+
+  contracts  Contract[]
+  snapshots  Snapshot[]
+  payments   PaymentLogged[]
+  auditChain AuditChainEntry[]
+}
+
+model Contract {
+  id              String    @id @default(cuid())
+  linkedAccountId String
+  linkedAccount   LinkedAccount @relation(fields: [linkedAccountId], references: [id], onDelete: Cascade)
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  commissionPct   Float
+  flatDeduction   Float
+  payoutLagDays   Int
+}
+
+model Snapshot {
+  id              String        @id @default(cuid())
+  linkedAccountId String
+  linkedAccount   LinkedAccount @relation(fields: [linkedAccountId], references: [id], onDelete: Cascade)
+  date            DateTime
+  subscriptions   Float
+  tips            Float
+  ppv             Float
+  customs         Float
+
+  @@unique([linkedAccountId, date])
+}
+
+model PaymentLogged {
+  id              String        @id @default(cuid())
+  linkedAccountId String
+  linkedAccount   LinkedAccount @relation(fields: [linkedAccountId], references: [id], onDelete: Cascade)
+  date            DateTime
+  amount          Float
+  note            String?
+  createdAt       DateTime      @default(now())
+}
+
+/// Append-only. A migration adds a Postgres trigger that rejects UPDATE/DELETE
+/// against this table — see prisma/migrations/*_audit_chain_append_only.
+/// NEVER write application code that updates or deletes rows here.
+model AuditChainEntry {
+  id              String        @id @default(cuid())
+  linkedAccountId String
+  linkedAccount   LinkedAccount @relation(fields: [linkedAccountId], references: [id], onDelete: Cascade)
+  seq             Int
+  timestamp       DateTime
+  dataJson        String
+  prevHash        String
+  hash            String
+  createdAt       DateTime      @default(now())
+
+  @@unique([linkedAccountId, seq])
+}

@@ -15,7 +15,8 @@ const NAV_ITEMS = [
 export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, mode, email } = useAuth();
+  const isDemo = mode === "demo";
 
   return (
     <>
@@ -60,12 +61,18 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
 
         <div className="border-t border-slate-200 p-3">
           <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-800">
-              DC
+            <div
+              className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                isDemo ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              {isDemo ? "DC" : (email?.[0] ?? "U").toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-slate-900">Demo Creator</p>
-              <p className="truncate text-xs text-amber-700">Demo Mode</p>
+              <p className="truncate text-sm font-medium text-slate-900">{isDemo ? "Demo Creator" : email}</p>
+              <p className={`truncate text-xs ${isDemo ? "text-amber-700" : "text-slate-400"}`}>
+                {isDemo ? "Demo Mode" : "Signed in"}
+              </p>
             </div>
           </div>
           <button
