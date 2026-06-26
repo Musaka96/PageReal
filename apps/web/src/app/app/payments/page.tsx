@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { useDemoStore } from "@/lib/store";
 import { reconcile } from "@/lib/reconciliation";
+import { buildCheckpoints, GRANULARITY_LABELS, type Granularity } from "@/lib/periods";
 
 function money(n: number): string {
   return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -35,19 +36,26 @@ const STATUS_STYLES: Record<Status, string> = {
 };
 
 export default function PaymentsPage() {
-  const { snapshots, contracts, payments, addPayment } = useDemoStore();
+  const { dailySnapshots, contracts, payments, addPayment } = useDemoStore();
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [granularity, setGranularity] = useState<Granularity>("biweek");
+  const [customDays, setCustomDays] = useState(10);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ date: "", amount: "", note: "" });
 
+  const checkpoints = useMemo(
+    () => buildCheckpoints(dailySnapshots, granularity, customDays),
+    [dailySnapshots, granularity, customDays]
+  );
+
   const rows: Row[] = useMemo(() => {
-    const start = snapshots[0]?.date;
-    const end = snapshots[snapshots.length - 1]?.date;
-    const result = reconcile(snapshots, contracts, payments, start, end);
+    const start = checkpoints[0]?.date;
+    const end = checkpoints[checkpoints.length - 1]?.date;
+    const result = reconcile(checkpoints, contracts, payments, start, end);
     return result.lineItems.map((item) => ({
       periodStart: item.periodStart,
       periodEnd: item.periodEnd,
@@ -57,7 +65,7 @@ export default function PaymentsPage() {
       delta: item.delta,
       status: statusOf(item.delta),
     }));
-  }, [snapshots, contracts, payments]);
+  }, [checkpoints, contracts, payments]);
 
   const filtered = rows
     .filter((r) => statusFilter === "all" || r.status === statusFilter)
@@ -150,6 +158,30 @@ export default function PaymentsPage() {
           </button>
         ))}
         <div className="ml-auto flex items-center gap-2">
+          <select
+            value={granularity}
+            onChange={(e) => setGranularity(e.target.value as Granularity)}
+            className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+          >
+            {Object.entries(GRANULARITY_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+          {granularity === "custom" && (
+            <span className="flex items-center gap-1 text-xs text-slate-500">
+              every
+              <input
+                type="number"
+                min={1}
+                value={customDays}
+                onChange={(e) => setCustomDays(Math.max(Number(e.target.value), 1))}
+                className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-xs"
+              />
+              days
+            </span>
+          )}
           <input
             type="date"
             value={fromDate}
