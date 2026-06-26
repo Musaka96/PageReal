@@ -157,7 +157,7 @@ export default function PaymentsPage() {
             {s}
           </button>
         ))}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
           <select
             value={granularity}
             onChange={(e) => setGranularity(e.target.value as Granularity)}

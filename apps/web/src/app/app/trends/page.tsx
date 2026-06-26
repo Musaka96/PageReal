@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -31,6 +31,38 @@ function average(values: number[]): number {
   return values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
 }
 
+type EarningsGranularity = "day" | "week" | "month";
+
+type DailyDelta = {
+  date: string;
+  subscriptions: number;
+  tips: number;
+  ppv: number;
+  customs: number;
+  total: number;
+};
+
+/** Buckets daily deltas into day/week/month totals for the earnings-over-time chart. */
+function bucketEarnings(daily: DailyDelta[], granularity: EarningsGranularity) {
+  if (granularity === "day") return daily.map((d) => ({ label: d.date, total: d.total }));
+
+  const buckets = new Map<string, number>();
+  for (const d of daily) {
+    const key = granularity === "month" ? d.date.slice(0, 7) : weekStart(d.date);
+    buckets.set(key, (buckets.get(key) ?? 0) + d.total);
+  }
+  return [...buckets.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([label, total]) => ({ label, total }));
+}
+
+function weekStart(date: string): string {
+  const d = new Date(date + "T00:00:00Z");
+  const dayOfWeek = (d.getUTCDay() + 6) % 7; // 0 = Monday
+  d.setUTCDate(d.getUTCDate() - dayOfWeek);
+  return d.toISOString().slice(0, 10);
+}
+
 const CATEGORY_COLORS = {
   subscriptions: "#0f172a",
   tips: "#f59e0b",
@@ -40,6 +72,7 @@ const CATEGORY_COLORS = {
 
 export default function TrendsPage() {
   const { dailySnapshots } = useDemoStore();
+  const [earningsGranularity, setEarningsGranularity] = useState<EarningsGranularity>("week");
 
   const sorted = useMemo(
     () => [...dailySnapshots].sort((a, b) => a.date.localeCompare(b.date)),
@@ -106,6 +139,11 @@ export default function TrendsPage() {
         100
       : 0;
 
+  const earningsSeries = useMemo(
+    () => bucketEarnings(periodSeries, earningsGranularity),
+    [periodSeries, earningsGranularity]
+  );
+
   return (
     <main className="px-6 py-8 sm:px-10">
       <PageHeader title="Sales Trends" subtitle="Revenue mix and growth across the account history." />
@@ -119,19 +157,30 @@ export default function TrendsPage() {
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
-          <h2 className="mb-4 text-sm font-semibold text-slate-700">Earnings over time (daily)</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-slate-700">Earnings over time</h2>
+            <select
+              value={earningsGranularity}
+              onChange={(e) => setEarningsGranularity(e.target.value as EarningsGranularity)}
+              className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+            >
+              <option value="day">Daily</option>
+              <option value="week">Weekly</option>
+              <option value="month">Monthly</option>
+            </select>
+          </div>
           <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={periodSeries}>
+            <AreaChart data={earningsSeries}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis
-                dataKey="date"
+                dataKey="label"
                 tick={{ fontSize: 11 }}
                 stroke="#94a3b8"
-                interval={Math.max(Math.floor(periodSeries.length / 7), 1)}
+                interval={Math.max(Math.floor(earningsSeries.length / 7), 0)}
               />
               <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
               <Tooltip formatter={moneyTooltip} />
-              <Area type="monotone" dataKey="total" stroke="#0f172a" fill="#0f172a" fillOpacity={0.08} strokeWidth={2} />
+              <Area type="natural" dataKey="total" stroke="#0f172a" fill="#0f172a" fillOpacity={0.08} strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
