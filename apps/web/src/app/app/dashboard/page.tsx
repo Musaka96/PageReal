@@ -74,6 +74,7 @@ export default function DashboardPage() {
   const [granularity, setGranularity] = useState<Granularity>("week");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [activeCategories, setActiveCategories] = useState<Category[]>(ALL_CATEGORIES);
+  const [breakdownSortDir, setBreakdownSortDir] = useState<"desc" | "asc">("desc");
 
   function toggleCategory(cat: Category) {
     setActiveCategories((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]));
@@ -83,6 +84,9 @@ export default function DashboardPage() {
     () => reconcile(snapshots, contracts, payments, dateFrom, dateTo),
     [snapshots, contracts, payments, dateFrom, dateTo]
   );
+
+  // reconcile() always returns periods oldest -> newest; reverse only for display.
+  const displayedLineItems = breakdownSortDir === "desc" ? [...result.lineItems].reverse() : result.lineItems;
 
   const chain = useMemo(
     () => buildAuditChain(snapshots.map((s) => ({ timestamp: s.date, data: s }))),
@@ -218,7 +222,16 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <h2 className="mt-8 mb-3 text-lg font-semibold text-slate-900">Period breakdown</h2>
+      <div className="mt-8 mb-3 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-slate-900">Period breakdown</h2>
+        <button
+          onClick={() => setBreakdownSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+          className="flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+        >
+          {breakdownSortDir === "desc" ? "Newest first" : "Oldest first"}
+          <span className="text-slate-400">{breakdownSortDir === "desc" ? "↓" : "↑"}</span>
+        </button>
+      </div>
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-100 text-slate-600">
@@ -231,7 +244,7 @@ export default function DashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {result.lineItems.map((item) => (
+            {displayedLineItems.map((item) => (
               <tr key={item.periodStart} className="border-t border-slate-100">
                 <td className="px-3 py-2 whitespace-nowrap">
                   {item.periodStart} → {item.periodEnd}

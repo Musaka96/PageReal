@@ -208,7 +208,9 @@ export default function PaymentsPage() {
 
       <h2 className="mt-8 mb-3 text-lg font-semibold text-slate-900">Logged payments</h2>
       <div className="space-y-2">
-        {payments.map((p, i) => (
+        {[...payments]
+          .sort((a, b) => b.date.localeCompare(a.date))
+          .map((p, i) => (
           <div key={i} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2">
             <span className="text-sm text-slate-700">{p.date}</span>
             <span className="text-sm text-slate-500">{p.note}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { buildAuditChain, verifyAuditChain } from "@/lib/audit-chain";
 import { useDemoStore } from "@/lib/store";
@@ -11,15 +11,33 @@ function money(n: number): string {
 
 export default function AuditLogPage() {
   const { snapshots } = useDemoStore();
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+
   const chain = useMemo(
     () => buildAuditChain(snapshots.map((s) => ({ timestamp: s.date, data: s }))),
     [snapshots]
   );
   const isValid = useMemo(() => verifyAuditChain(chain), [chain]);
 
+  // The chain itself is always built oldest -> newest (each hash depends on
+  // the previous one) — only the display order is reversible.
+  const displayChain = sortDir === "desc" ? [...chain].reverse() : chain;
+
   return (
     <main className="px-6 py-8 sm:px-10">
-      <PageHeader title="Audit Log" subtitle="Tamper-evident, append-only history of every earnings snapshot." />
+      <PageHeader
+        title="Audit Log"
+        subtitle="Tamper-evident, append-only history of every earnings snapshot."
+        action={
+          <button
+            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            className="flex items-center gap-1 rounded-full border border-slate-300 bg-white px-4 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            {sortDir === "desc" ? "Newest first" : "Oldest first"}
+            <span className="text-slate-400">{sortDir === "desc" ? "↓" : "↑"}</span>
+          </button>
+        }
+      />
 
       <div
         className={`mb-6 rounded-xl border p-4 text-sm font-medium ${
@@ -32,7 +50,7 @@ export default function AuditLogPage() {
       </div>
 
       <div className="space-y-2">
-        {chain.map((entry) => {
+        {displayChain.map((entry) => {
           const snapshot = entry.data as { subscriptions: number; tips: number; ppv: number; customs: number };
           const total = snapshot.subscriptions + snapshot.tips + snapshot.ppv + snapshot.customs;
           return (
